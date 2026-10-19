@@ -1,12 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>互動式彈簧阻尼簡諧運動模擬器與數據匯出</title>
+  <title>互動式彈簧阻尼簡諧運動模擬器與數據圖表匯出</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for Exported Data Charting -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -26,7 +27,7 @@
         <h1 class="text-2xl font-bold text-indigo-600 flex items-center gap-2">
           <span>🌀</span> 彈簧阻尼簡諧運動模擬器
         </h1>
-        <p class="text-xs text-slate-500 mt-1">Damped Harmonic Motion Interactive Physics Lab</p>
+        <p class="text-xs text-slate-500 mt-1">Damped Harmonic Motion Interactive Simulator & Custom Range Data Exporter</p>
       </div>
       <div id="statusBadge" class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
         欠阻尼 (Underdamped)
@@ -37,20 +38,20 @@
   <!-- Main Content -->
   <main class="max-w-7xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 my-auto">
     
-    <!-- Left Column: Canvas Displays & Data Logs -->
+    <!-- Left Column: Canvas Displays & Generated Chart/Table -->
     <div class="lg:col-span-7 flex flex-col gap-4">
       <!-- Spring Animation Canvas -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 relative">
         <div class="flex justify-between items-center mb-2">
-          <h2 class="text-sm font-bold text-slate-700 flex items-center gap-1">
-            <span>🎯</span> 物理動畫區
+          <h2 class="text-sm font-bold text-slate-600 flex items-center gap-1">
+            <span>🎯</span> 物理動畫演示區
           </h2>
-          <span class="text-xs text-slate-400" id="timeDisplay">時間 t = 0.00 s</span>
+          <span class="text-xs text-slate-400" id="timeDisplay">系統運作時間 t = 0.00 s</span>
         </div>
         
-        <!-- Interactive Guidance Banner -->
-        <div class="bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs px-3 py-1.5 rounded-lg mb-2 flex items-center gap-1.5 font-medium">
-          <span>💡 <b>操作提示：</b>您可以直接用滑鼠（或手機觸控）點擊並<b>上下拖曳球體</b>以設定初始位移，放開後彈簧即開始運動！</span>
+        <!-- User Interaction Notice Banner -->
+        <div class="bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-medium mb-2 flex items-center gap-2">
+          <span>💡 <b>互動提示：</b>您可以直接按住滑鼠左鍵（或於觸控螢幕上手指按住）拉動圓形質量塊至任意位置，放開後即可觀察自由釋放的阻尼振動過程！</span>
         </div>
 
         <canvas id="simCanvas" class="w-full h-64 border border-slate-100 rounded-lg bg-slate-50 cursor-grab active:cursor-grabbing"></canvas>
@@ -58,131 +59,146 @@
 
       <!-- Real-time x-t Graph Canvas -->
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <h2 class="text-sm font-bold text-slate-700 mb-2 flex items-center gap-1">
-          <span>📈</span> 即時位移 - 時間圖 (Real-time x - t Graph)
+        <h2 class="text-sm font-bold text-slate-600 mb-2 flex items-center gap-1">
+          <span>📈</span> 即時位移 - 時間圖 (Real-time x - t Wave)
         </h2>
         <canvas id="graphCanvas" class="w-full h-28 border border-slate-100 rounded-lg bg-slate-50"></canvas>
       </div>
 
-      <!-- Section: Range Data Table & Specific Range Chart -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <div class="flex justify-between items-center mb-3">
-          <div>
-            <h2 class="text-sm font-bold text-slate-700 flex items-center gap-1">
-              <span>📋</span> 指定時間區間運動數據與波形圖
-            </h2>
-            <p class="text-xs text-slate-400" id="rangeInfoText">尚未產生區間數據，請於右側設定「第幾秒到第幾秒」後點擊輸出。</p>
-          </div>
+      <!-- Custom Range Output Section (Chart & Table) -->
+      <div id="outputSection" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-4">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="text-sm font-bold text-slate-700 flex items-center gap-1">
+            <span>📊</span> 指定區間分析圖表與報表
+          </h2>
           <button id="downloadCsvBtn" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium py-1.5 px-3 rounded-lg transition shadow-sm flex items-center gap-1">
-            <span>📥 下載 CSV 數據</span>
+            <span>📥 下載匯出 CSV 數據</span>
           </button>
         </div>
 
-        <!-- Range x-t Mini Plot -->
-        <div id="rangeChartContainer" class="hidden mb-3">
-          <div class="text-xs font-semibold text-slate-500 mb-1">📊 區間位移波形 (Range Plot):</div>
-          <canvas id="rangeChartCanvas" class="w-full h-24 border border-slate-100 rounded-lg bg-slate-50"></canvas>
+        <!-- Custom Range Chart -->
+        <div>
+          <h3 class="text-xs font-semibold text-slate-500 mb-1">自訂時間區間軌跡圖表 (x-t)</h3>
+          <div class="h-44 w-full border border-slate-100 rounded-lg p-2 bg-slate-50">
+            <canvas id="rangeChart"></canvas>
+          </div>
         </div>
 
         <!-- Data Table -->
-        <div class="max-h-40 overflow-y-auto border border-slate-100 rounded-lg">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead class="bg-slate-100 text-slate-600 sticky top-0">
-              <tr>
-                <th class="p-2 border-b">時間 t (s)</th>
-                <th class="p-2 border-b">位移 x (m)</th>
-                <th class="p-2 border-b">速度 v (m/s)</th>
-                <th class="p-2 border-b">加速度 a (m/s²)</th>
-              </tr>
-            </thead>
-            <tbody id="dataTableBody" class="text-slate-600">
-              <tr>
-                <td colspan="4" class="p-4 text-center text-slate-400">尚未執行數據輸出，請點擊右側「執行指定區間模擬並輸出數據」。</td>
-              </tr>
-            </tbody>
-          </table>
+        <div>
+          <h3 class="text-xs font-semibold text-slate-500 mb-1">分析數據明細列表</h3>
+          <div class="max-h-36 overflow-y-auto border border-slate-100 rounded-lg">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-slate-100 text-slate-600 sticky top-0">
+                <tr>
+                  <th class="p-2 border-b">時間 t (s)</th>
+                  <th class="p-2 border-b">位移 x (m)</th>
+                  <th class="p-2 border-b">速度 v (m/s)</th>
+                  <th class="p-2 border-b">加速度 a (m/s²)</th>
+                </tr>
+              </thead>
+              <tbody id="dataTableBody" class="text-slate-600">
+                <tr>
+                  <td colspan="4" class="p-4 text-center text-slate-400">請於右側設定「時間區間」與「時間間隔」後，點擊「分析並輸出數據與圖表」。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Right Column: Control Panel -->
+    <!-- Right Column: Control Panel & Physical Metrics -->
     <div class="lg:col-span-5 flex flex-col gap-4">
       
       <!-- Controls -->
       <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col justify-between">
-        <h2 class="text-base font-bold text-slate-700 mb-4 border-b pb-2">⚙️ 物理參數控制 (Parameters)</h2>
-        
-        <div class="space-y-4">
-          <!-- Mass m -->
-          <div>
-            <div class="flex justify-between text-sm font-medium mb-1">
-              <label for="massSlider" class="text-slate-600">質量 (m):</label>
-              <span id="massVal" class="text-indigo-600 font-bold">2.0 kg</span>
+        <div>
+          <h2 class="text-base font-bold text-slate-700 mb-4 border-b pb-2">⚙️ 物理參數控制 (Parameters)</h2>
+          
+          <div class="space-y-4">
+            <!-- Mass m -->
+            <div>
+              <div class="flex justify-between text-sm font-medium mb-1">
+                <label for="massSlider" class="text-slate-600">質量 (m):</label>
+                <span id="massVal" class="text-indigo-600 font-bold">2.0 kg</span>
+              </div>
+              <input type="range" id="massSlider" min="0.5" max="10" step="0.1" value="2.0" class="w-full accent-indigo-600">
             </div>
-            <input type="range" id="massSlider" min="0.5" max="10" step="0.1" value="2.0" class="w-full accent-indigo-600">
-          </div>
 
-          <!-- Spring Constant k -->
-          <div>
-            <div class="flex justify-between text-sm font-medium mb-1">
-              <label for="kSlider" class="text-slate-600">彈性常數 (k):</label>
-              <span id="kVal" class="text-indigo-600 font-bold">30.0 N/m</span>
+            <!-- Spring Constant k -->
+            <div>
+              <div class="flex justify-between text-sm font-medium mb-1">
+                <label for="kSlider" class="text-slate-600">彈性常數 (k):</label>
+                <span id="kVal" class="text-indigo-600 font-bold">30.0 N/m</span>
+              </div>
+              <input type="range" id="kSlider" min="5" max="100" step="1" value="30.0" class="w-full accent-indigo-600">
             </div>
-            <input type="range" id="kSlider" min="5" max="100" step="1" value="30.0" class="w-full accent-indigo-600">
-          </div>
 
-          <!-- Damping Coefficient b -->
-          <div>
-            <div class="flex justify-between text-sm font-medium mb-1">
-              <label for="bSlider" class="text-slate-600">阻尼係數 (b):</label>
-              <span id="bVal" class="text-indigo-600 font-bold">1.0 N·s/m</span>
+            <!-- Damping Coefficient b -->
+            <div>
+              <div class="flex justify-between text-sm font-medium mb-1">
+                <label for="bSlider" class="text-slate-600">阻尼係數 (b):</label>
+                <span id="bVal" class="text-indigo-600 font-bold">1.0 N·s/m</span>
+              </div>
+              <input type="range" id="bSlider" min="0" max="15" step="0.1" value="1.0" class="w-full accent-indigo-600">
             </div>
-            <input type="range" id="bSlider" min="0" max="15" step="0.1" value="1.0" class="w-full accent-indigo-600">
-          </div>
 
-          <!-- Simulation Time Interval Inputs -->
-          <div class="pt-3 border-t border-slate-100">
-            <label class="text-xs font-bold text-slate-700 block mb-2">⏱️ 輸出時間區間設定 (Time Range)</label>
-            <div class="flex items-center gap-2 text-xs text-slate-600">
-              <span>釋放彈簧後第</span>
-              <input type="number" id="startTimeInput" min="0" max="30" value="0" step="0.5" class="w-16 p-1.5 border border-slate-300 rounded text-center text-indigo-600 font-bold">
-              <span>秒至第</span>
-              <input type="number" id="endTimeInput" min="0.5" max="30" value="5" step="0.5" class="w-16 p-1.5 border border-slate-300 rounded text-center text-indigo-600 font-bold">
-              <span>秒</span>
+            <!-- Simulation Controls Buttons -->
+            <div class="grid grid-cols-3 gap-2 pt-2">
+              <button id="pauseBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-2 rounded-lg text-xs transition shadow-sm">
+                ⏸ 暫停
+              </button>
+              <button id="resetBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-2 rounded-lg text-xs transition border border-slate-200">
+                🔄 重置
+              </button>
+              <button id="impulseBtn" class="bg-amber-500 hover:bg-amber-600 text-white font-medium py-2 px-2 rounded-lg text-xs transition shadow-sm">
+                💥 施加外力
+              </button>
             </div>
+
+            <!-- Custom Output Time & Interval Config -->
+            <div class="pt-4 border-t border-slate-100 space-y-3">
+              <h3 class="text-xs font-bold text-slate-600 flex items-center gap-1">
+                ⏱️ 匯出區間與時間間隔設定
+              </h3>
+              
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label for="tStartInput" class="block text-xs text-slate-500 mb-1">起始時間 t1 (秒):</label>
+                  <input type="number" id="tStartInput" min="0" max="60" step="0.5" value="0" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                  <label for="tEndInput" class="block text-xs text-slate-500 mb-1">結束時間 t2 (秒):</label>
+                  <input type="number" id="tEndInput" min="0.5" max="60" step="0.5" value="5" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:border-indigo-500">
+                </div>
+              </div>
+
+              <div>
+                <label for="dtInput" class="block text-xs text-slate-500 mb-1">取樣時間間隔 Δt (秒):</label>
+                <input type="number" id="dtInput" min="0.01" max="1" step="0.01" value="0.05" class="w-full p-2 border border-slate-300 rounded-lg text-xs font-bold text-indigo-600 focus:outline-none focus:border-indigo-500">
+              </div>
+
+              <button id="runBatchBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-1">
+                <span>📈 分析並輸出數據與圖表</span>
+              </button>
+            </div>
+
           </div>
         </div>
 
-        <!-- Interactive Action Buttons -->
-        <div class="grid grid-cols-3 gap-2 mt-4">
-          <button id="pauseBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-2 rounded-lg text-xs transition shadow-sm">
-            ⏸ 暫停
-          </button>
-          <button id="resetBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-2 rounded-lg text-xs transition border border-slate-200">
-            🔄 重置
-          </button>
-          <button id="impulseBtn" class="bg-amber-500 hover:bg-amber-600 text-white font-medium py-2 px-2 rounded-lg text-xs transition shadow-sm">
-            💥 施加外力
-          </button>
-        </div>
-
-        <!-- Export Action Button -->
-        <button id="runBatchBtn" class="w-full mt-3 bg-indigo-700 hover:bg-indigo-800 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition shadow-sm flex items-center justify-center gap-2">
-          <span>📊 執行指定區間模擬與數據輸出</span>
-        </button>
-
-        <!-- Physical Metrics Readout -->
+        <!-- Real-Time Metrics Readout -->
         <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
           <div class="bg-slate-50 p-2 rounded-lg">
-            <div class="text-xs text-slate-400">位移 x</div>
+            <div class="text-xs text-slate-400">即時位移 x</div>
             <div id="dispText" class="text-sm font-bold text-slate-700">0.00 m</div>
           </div>
           <div class="bg-slate-50 p-2 rounded-lg">
-            <div class="text-xs text-slate-400">速度 v</div>
+            <div class="text-xs text-slate-400">即時速度 v</div>
             <div id="velText" class="text-sm font-bold text-slate-700">0.00 m/s</div>
           </div>
           <div class="bg-slate-50 p-2 rounded-lg">
-            <div class="text-xs text-slate-400">加速度 a</div>
+            <div class="text-xs text-slate-400">即時加速度 a</div>
             <div id="accText" class="text-sm font-bold text-slate-700">0.00 m/s²</div>
           </div>
         </div>
@@ -196,24 +212,18 @@
     Interactive Damped Motion Physics Web App &copy; Vibe Coding Assignment
   </footer>
 
-  <!-- Simulation Logic Script -->
+  <!-- Simulation & Chart Logic Script -->
   <script>
     const simCanvas = document.getElementById('simCanvas');
     const simCtx = simCanvas.getContext('2d');
     const graphCanvas = document.getElementById('graphCanvas');
     const graphCtx = graphCanvas.getContext('2d');
-    const rangeChartCanvas = document.getElementById('rangeChartCanvas');
-    const rangeChartCtx = rangeChartCanvas.getContext('2d');
 
     function resizeCanvases() {
       simCanvas.width = simCanvas.clientWidth;
       simCanvas.height = simCanvas.clientHeight;
       graphCanvas.width = graphCanvas.clientWidth;
       graphCanvas.height = graphCanvas.clientHeight;
-      if (rangeChartCanvas.clientWidth) {
-        rangeChartCanvas.width = rangeChartCanvas.clientWidth;
-        rangeChartCanvas.height = rangeChartCanvas.clientHeight;
-      }
     }
     window.addEventListener('resize', resizeCanvases);
 
@@ -230,11 +240,11 @@
     let isRunning = true;
     let isDragging = false;
 
-    // History for x-t plot
+    // History for live x-t plot
     let history = [];
     const maxHistoryLength = 400;
 
-    // UI Elements
+    // UI Controls Elements
     const massSlider = document.getElementById('massSlider');
     const kSlider = document.getElementById('kSlider');
     const bSlider = document.getElementById('bSlider');
@@ -250,17 +260,17 @@
     const velText = document.getElementById('velText');
     const accText = document.getElementById('accText');
     
-    const startTimeInput = document.getElementById('startTimeInput');
-    const endTimeInput = document.getElementById('endTimeInput');
+    const tStartInput = document.getElementById('tStartInput');
+    const tEndInput = document.getElementById('tEndInput');
+    const dtInput = document.getElementById('dtInput');
     const runBatchBtn = document.getElementById('runBatchBtn');
     const dataTableBody = document.getElementById('dataTableBody');
     const downloadCsvBtn = document.getElementById('downloadCsvBtn');
-    const rangeInfoText = document.getElementById('rangeInfoText');
-    const rangeChartContainer = document.getElementById('rangeChartContainer');
 
     let exportedDataLogs = [];
+    let rangeChartInstance = null;
 
-    // Event Listeners for Sliders
+    // Sliders & Controls Event Listeners
     massSlider.addEventListener('input', (e) => {
       m = parseFloat(e.target.value);
       massVal.textContent = m.toFixed(1) + ' kg';
@@ -296,89 +306,94 @@
       v += 3.0;
     });
 
-    // Batch simulation & Range Data Export Logic
+    // Custom Time Range & Interval Calculation and Chart Render
     runBatchBtn.addEventListener('click', () => {
-      let tStart = parseFloat(startTimeInput.value) || 0;
-      let tEnd = parseFloat(endTimeInput.value) || 5;
+      const t1 = Math.max(0, parseFloat(tStartInput.value) || 0);
+      const t2 = Math.max(t1 + 0.1, parseFloat(tEndInput.value) || 5);
+      const userDt = Math.max(0.005, parseFloat(dtInput.value) || 0.05);
 
-      if (tStart >= tEnd) {
-        alert('起始時間必須小於結束時間！');
-        return;
-      }
-
-      const dtStep = 0.02; // Precision step
-      let simX = 1.0; // Start from released displacement 1.0
+      let simX = 1.0; // Initial displacement on release
       let simV = 0.0;
       let simT = 0;
-      
-      exportedDataLogs = [];
-      dataTableBody.innerHTML = '';
+      const internalDt = 0.002; // Fine step for accurate physics integration
 
-      while (simT <= tEnd + 0.001) {
+      exportedDataLogs = [];
+      let nextSampleTime = t1;
+
+      while (simT <= t2 + 0.0001) {
         let simA = (-k * simX - b * simV) / m;
 
-        if (simT >= tStart - 0.0001) {
-          exportedDataLogs.push({ t: simT, x: simX, v: simV, a: simA });
+        if (simT >= t1 - 0.0001 && simT >= nextSampleTime - 0.0001) {
+          exportedDataLogs.push({
+            t: Math.round(simT * 1000) / 1000,
+            x: simX,
+            v: simV,
+            a: simA
+          });
+          nextSampleTime += userDt;
         }
-        
-        simV += simA * dtStep;
-        simX += simV * dtStep;
-        simT += dtStep;
+
+        simV += simA * internalDt;
+        simX += simV * internalDt;
+        simT += internalDt;
       }
 
-      // Populate Table
-      exportedDataLogs.forEach(row => {
+      // Render Data Table
+      dataTableBody.innerHTML = '';
+      const displayLogs = exportedDataLogs.slice(0, 200);
+      displayLogs.forEach(row => {
         const tr = document.createElement('tr');
         tr.className = 'border-b hover:bg-slate-50';
         tr.innerHTML = `
-          <td class="p-2 font-mono">${row.t.toFixed(2)}</td>
-          <td class="p-2 font-medium text-indigo-600 font-mono">${row.x.toFixed(4)}</td>
-          <td class="p-2 font-mono">${row.v.toFixed(4)}</td>
-          <td class="p-2 font-mono">${row.a.toFixed(4)}</td>
+          <td class="p-2">${row.t.toFixed(2)}</td>
+          <td class="p-2 font-medium text-indigo-600">${row.x.toFixed(4)}</td>
+          <td class="p-2">${row.v.toFixed(4)}</td>
+          <td class="p-2">${row.a.toFixed(4)}</td>
         `;
         dataTableBody.appendChild(tr);
       });
 
-      rangeInfoText.textContent = `已顯示釋放後第 ${tStart.toFixed(1)}s 至 ${tEnd.toFixed(1)}s 之數據與波形圖 (共 ${exportedDataLogs.length} 筆)`;
       downloadCsvBtn.classList.remove('hidden');
-      rangeChartContainer.classList.remove('hidden');
 
-      // Render Range Specific Chart
-      renderRangeChart();
+      // Render Range Chart using Chart.js
+      renderRangeChart(exportedDataLogs);
     });
 
-    function renderRangeChart() {
-      resizeCanvases();
-      const w = rangeChartCanvas.width;
-      const h = rangeChartCanvas.height;
-      rangeChartCtx.clearRect(0, 0, w, h);
+    function renderRangeChart(logs) {
+      const ctx = document.getElementById('rangeChart').getContext('2d');
+      const labels = logs.map(l => l.t.toFixed(2));
+      const displacements = logs.map(l => l.x);
 
-      if (exportedDataLogs.length < 2) return;
+      if (rangeChartInstance) {
+        rangeChartInstance.destroy();
+      }
 
-      const centerY = h / 2;
-      const scaleY = 25;
-
-      // Axis
-      rangeChartCtx.strokeStyle = '#e2e8f0';
-      rangeChartCtx.lineWidth = 1;
-      rangeChartCtx.beginPath();
-      rangeChartCtx.moveTo(0, centerY);
-      rangeChartCtx.lineTo(w, centerY);
-      rangeChartCtx.stroke();
-
-      // Plot curve
-      rangeChartCtx.beginPath();
-      rangeChartCtx.strokeStyle = '#4f46e5';
-      rangeChartCtx.lineWidth = 2;
-
-      const stepX = w / (exportedDataLogs.length - 1);
-      exportedDataLogs.forEach((pt, idx) => {
-        const px = idx * stepX;
-        const py = centerY - pt.x * scaleY;
-        if (idx === 0) rangeChartCtx.moveTo(px, py);
-        else rangeChartCtx.lineTo(px, py);
+      rangeChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '位移 x (m)',
+            data: displacements,
+            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+            fill: true,
+            tension: 0.2,
+            pointRadius: logs.length < 50 ? 3 : 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { title: { display: true, text: '時間 t (s)', font: { size: 10 } } },
+            y: { title: { display: true, text: '位移 x (m)', font: { size: 10 } } }
+          }
+        }
       });
-      rangeChartCtx.stroke();
     }
 
     // Download CSV
@@ -391,13 +406,13 @@
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `damped_motion_${startTimeInput.value}s_to_${endTimeInput.value}s.csv`);
+      link.setAttribute("download", `damped_motion_t${tStartInput.value}_to_${tEndInput.value}s.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     });
 
-    // Mouse Dragging Simulation
+    // Mouse/Touch Dragging Simulation
     function getMouseY(e) {
       const rect = simCanvas.getBoundingClientRect();
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -409,7 +424,7 @@
       const eqY = simCanvas.height / 3;
       const scale = 50;
       const ballY = eqY + x * scale;
-      if (Math.abs(mouseY - ballY) < 35) {
+      if (Math.abs(mouseY - ballY) < 30) {
         isDragging = true;
         v = 0;
       }
@@ -453,7 +468,7 @@
       }
     }
 
-    // Physics Engine Update
+    // Real-Time Physics Integration
     const dt = 0.016;
     function updatePhysics() {
       if (!isRunning || isDragging) return;
@@ -468,7 +483,7 @@
       }
     }
 
-    // Render Animation Canvas
+    // Render Simulation Canvas
     function drawSpringCanvas() {
       const w = simCanvas.width;
       const h = simCanvas.height;
@@ -503,7 +518,7 @@
       simCtx.font = '10px sans-serif';
       simCtx.fillText('平衡位置 (x = 0)', anchorX + 85, eqY + 3);
 
-      // Spring
+      // Spring Coils
       const coils = 12;
       const springLength = ballY - anchorY;
       simCtx.beginPath();
@@ -517,7 +532,7 @@
       }
       simCtx.stroke();
 
-      // Ball
+      // Ball Mass
       const radius = 12 + m * 1.2;
       simCtx.beginPath();
       simCtx.arc(anchorX, ballY, radius, 0, Math.PI * 2);
@@ -533,7 +548,7 @@
       simCtx.fillText(`${m.toFixed(1)}kg`, anchorX, ballY + 4);
     }
 
-    // Render Graph Canvas
+    // Render Real-time Graph Canvas
     function drawGraphCanvas() {
       const w = graphCanvas.width;
       const h = graphCanvas.height;
@@ -566,7 +581,7 @@
     }
 
     function updateUI() {
-      timeDisplay.textContent = `時間 t = ${t.toFixed(2)} s`;
+      timeDisplay.textContent = `系統運作時間 t = ${t.toFixed(2)} s`;
       dispText.textContent = `${x.toFixed(2)} m`;
       velText.textContent = `${v.toFixed(2)} m/s`;
       accText.textContent = `${a.toFixed(2)} m/s²`;
